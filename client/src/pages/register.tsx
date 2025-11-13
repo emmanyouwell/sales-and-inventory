@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UserPlus, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import blcmLogo from "@/assets/blcm-logo.png";
 
 interface RegisterData {
   firstName: string;
@@ -109,19 +110,23 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary to-accent">
+    <div className="min-h-screen flex items-center justify-center p-4 from-primary to-accent  bg-red-700">
       <div className="w-full max-w-lg">
         <div className="login-container shadow-2xl border-0 rounded-lg">
           <div className="p-8">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-                <UserPlus className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4">
+                <img
+                  src={blcmLogo}
+                  alt="BLCM Logo"
+                  className="w-30 h-30 object-contain"
+                />
               </div>
               <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="register-title">
-                Add Account
+                Create Account
               </h1>
               <p className="text-muted-foreground" data-testid="register-subtitle">
-                Join us today
+              Create your BLCM Hardware account
               </p>
             </div>
 
@@ -241,7 +246,7 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role" className="text-foreground font-medium text-sm">
+                <Label htmlFor="role" className="text-foreground font-medium text-sm ">
                   Role
                 </Label>
                 <Select
@@ -249,13 +254,13 @@ export default function Register() {
                   onValueChange={(value) => handleInputChange("role", value)}
                   data-testid="select-role"
                 >
-                  <SelectTrigger className="h-10">
+                  <SelectTrigger className="h-10 ">
                     <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="supplier">Supplier</SelectItem>
+                  <SelectContent >
+                    <SelectItem value="staff" className="hover:bg-red-500 hover:text-white data-[state=checked]:bg-red-500 data-[state=checked]:text-white">Staff</SelectItem>
+                    <SelectItem value="admin" className="hover:bg-red-500 hover:text-white data-[state=checked]:bg-red-500 data-[state=checked]:text-white">Admin</SelectItem>
+                    <SelectItem value="supplier" className="hover:bg-red-500 hover:text-white data-[state=checked]:bg-red-500 data-[state=checked]:text-white">Supplier</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -264,7 +269,7 @@ export default function Register() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="supply" className="text-foreground font-medium text-sm">
+                      <Label htmlFor="supply" className="text-foreground font-medium text-sm ">
                         Supply Type
                       </Label>
                       <Input
@@ -303,7 +308,7 @@ export default function Register() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-10 font-medium transition-all duration-200"
+                className="w-full h-10 font-medium transition-all duration-200  bg-red-700"
                 data-testid="button-register"
               >
                 {isLoading && (
@@ -321,7 +326,7 @@ export default function Register() {
                 <Link href="/login">
                   <button
                     type="button"
-                    className="text-primary hover:text-primary/80 text-sm font-medium underline"
+                    className="text-red-500 hover:text-red-600 text-sm font-medium underline"
                   >
                     Sign in here
                   </button>

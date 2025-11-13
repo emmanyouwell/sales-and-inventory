@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lock, UserPlus, Loader2 } from "lucide-react";
+import blcmLogo from "@/assets/blcm-logo.png";
+
 import { Link } from "wouter";
 
 export default function Login() {
@@ -71,21 +73,25 @@ export default function Login() {
   };
 
   return (
-   <div className="min-h-screen flex items-center justify-center bg-black">
+   <div className="min-h-screen flex items-center justify-center bg-red-700">
 
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-sm">
         <div className="login-container shadow-2xl border-0 rounded-lg">
           <div className="p-8">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mx-auto mb-4">
-                <Lock className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4">
+                 <img
+                  src={blcmLogo}
+                  alt="BLCM Logo"
+                  className="w-30 h-30 object-contain"
+                />
               </div>
               <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="login-title">
-                BLCM Hardware Login
+                Welcome
               </h1>
               <p className="text-muted-foreground" data-testid="login-subtitle">
-                Get Started
+                Login your BLCM Hardware account
               </p>
             </div>
 
@@ -108,7 +114,7 @@ export default function Login() {
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
                   data-testid="input-username"
-                  className="h-12 transition-all duration-200"
+                  className="h-12 transition-all duration-200  "
                 />
               </div>
 
@@ -142,7 +148,7 @@ export default function Login() {
               <Button
                 type="submit"
                 disabled={isLoginPending || cooldownTime > 0}
-                className="w-full h-12 font-medium transition-all duration-200"
+               className="w-full h-12 font-medium bg-red-700 text-white transition-all duration-200 hover:bg-red-600"
                 data-testid="button-login"
               >
                 {isLoginPending && (
@@ -160,10 +166,10 @@ export default function Login() {
                 <Link href="/register">
                   <button
                     type="button"
-                    className="text-primary hover:text-primary/80 text-sm font-medium underline"
+                   className="text-red-500 hover:text-red-600 text-sm font-medium underline"
                     data-testid="link-register"
                   >
-                    Create one here
+                    Register
                   </button>
                 </Link>
               </div>
