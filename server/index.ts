@@ -51,6 +51,7 @@ app.use((req, res, next) => {
    MONGODB CONNECTION
 ============================================================ */
 let isConnected = false;
+
 async function connectDB() {
   if (isConnected) return;
 
@@ -69,12 +70,13 @@ async function connectDB() {
 /* ============================================================
    API ROUTES
 ============================================================ */
-await registerRoutes(app); // ensure async routes are registered
+await registerRoutes(app);
 
 /* ============================================================
-   FRONTEND SETUP (Vite or Static)
+   FRONTEND SETUP
 ============================================================ */
 let frontendReady = false;
+
 async function setupFrontend() {
   if (frontendReady) return;
 
@@ -97,7 +99,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 /* ============================================================
-   SERVERLESS HANDLER (Vercel)
+   SERVERLESS HANDLER (Vercel ONLY)
 ============================================================ */
 export default async function handler(req: Request, res: Response) {
   try {
@@ -108,4 +110,26 @@ export default async function handler(req: Request, res: Response) {
     console.error("💥 Serverless handler error:", err);
     res.status(500).json({ message: "Server error" });
   }
+}
+
+/* ============================================================
+   NORMAL NODE SERVER (Render, Railway, Local)
+============================================================ */
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3000;
+
+  // startup wrapper to avoid top-level await in older hosts
+  (async () => {
+    try {
+      await connectDB();
+      await setupFrontend();
+
+      app.listen(port, () => {
+        console.log(`🚀 Server running on port ${port}`);
+      });
+    } catch (err) {
+      console.error("🔥 Failed to start server:", err);
+      process.exit(1);
+    }
+  })();
 }
