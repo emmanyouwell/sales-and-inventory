@@ -2,10 +2,16 @@ import express, { type Request, type Response, type NextFunction } from "express
 import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import cors from "cors";
 dotenv.config();
 
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
+
+/* ============================================================
+   DEPLOYED BACKEND URL (Render)
+============================================================ */
+export const BASE_API_URL = "https://sales-inventory-management.onrender.com";
 
 /* ============================================================
    APP INITIALIZATION
@@ -15,6 +21,20 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+/* ============================================================
+   CORS (REQUIRED FOR RENDER DEPLOYMENT)
+============================================================ */
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://your-frontend.vercel.app", // replace with your real frontend URL
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+  })
+);
 
 /* ============================================================
    LOGGING MIDDLEWARE
@@ -31,15 +51,21 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     if (req.path.startsWith("/api")) {
-      let logLine = `${req.method} ${req.path} ${res.statusCode} in ${Date.now() - start}ms`;
+      let logLine = `${req.method} ${req.path} ${res.statusCode} in ${
+        Date.now() - start
+      }ms`;
+
       if (capturedJsonResponse) {
         try {
           const jsonStr = JSON.stringify(capturedJsonResponse);
-          logLine += ` :: ${jsonStr.length > 80 ? jsonStr.slice(0, 79) + "…" : jsonStr}`;
+          logLine += ` :: ${
+            jsonStr.length > 80 ? jsonStr.slice(0, 79) + "…" : jsonStr
+          }`;
         } catch {
           logLine += " :: [unserializable JSON]";
         }
       }
+
       log(logLine);
     }
   });
@@ -56,7 +82,10 @@ async function connectDB() {
   if (isConnected) return;
 
   try {
-    const uri = process.env.MONGO_URI || "mongodb+srv://mdaviddd:mdaviddd123@cluster0.th1nuox.mongodb.net/sales-inventory-management?retryWrites=true&w=majority";
+    const uri =
+      process.env.MONGO_URI ||
+      "mongodb+srv://mdaviddd:mdaviddd123@cluster0.th1nuox.mongodb.net/sales-inventory-management?retryWrites=true&w=majority";
+
     mongoose.set("strictQuery", true);
     await mongoose.connect(uri);
     log("✅ MongoDB connected");
@@ -118,7 +147,6 @@ export default async function handler(req: Request, res: Response) {
 if (!process.env.VERCEL) {
   const port = process.env.PORT || 3000;
 
-  // startup wrapper to avoid top-level await in older hosts
   (async () => {
     try {
       await connectDB();
