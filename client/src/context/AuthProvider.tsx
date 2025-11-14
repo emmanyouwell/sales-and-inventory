@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       try {
         const response = await fetch(`${BASE_API_URL}/api/me`, {
-          credentials: "include",
+          credentials: "include", // ✅ include cookies for cross-domain auth
         });
         if (!response.ok) return null;
         return response.json();
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${BASE_API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: "include", // ✅ include cookies
         body: JSON.stringify({ username, password }),
       });
 
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       await fetch(`${BASE_API_URL}/api/logout`, {
         method: "POST",
-        credentials: "include",
+        credentials: "include", // ✅ include cookies
       });
     },
     onSuccess: () => {
