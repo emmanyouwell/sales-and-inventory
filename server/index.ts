@@ -56,7 +56,7 @@ async function connectDB() {
   if (isConnected) return;
 
   try {
-    const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/loginDB";
+    const uri = process.env.MONGO_URI || "mongodb+srv://mdaviddd:mdaviddd123@cluster0.th1nuox.mongodb.net/sales-inventory-management?retryWrites=true&w=majority";
     mongoose.set("strictQuery", true);
     await mongoose.connect(uri);
     log("✅ MongoDB connected");
