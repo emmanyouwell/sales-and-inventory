@@ -29,7 +29,7 @@ app.use(
   cors({
     origin: [
       "https://sales-inventory-management.onrender.com",
-      "https://sales-inventory-management-u4dn.vercel.app/", // replace with your real frontend URL
+      "https://sales-inventory-management-u4dn.vercel.app", // replace with your real frontend URL
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
