@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { BASE_API_URL } from "@/api";
 import { User } from "@shared/schema";
 
 interface AuthContextType {
@@ -17,12 +17,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
-  // Get current user
+  // Fetch current user
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/me"],
     queryFn: async () => {
       try {
-        const response = await fetch("/api/me", { credentials: "include" });
+        const response = await fetch(`${BASE_API_URL}/api/me`, {
+          credentials: "include",
+        });
         if (!response.ok) return null;
         return response.json();
       } catch {
@@ -32,25 +34,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Login
+  // Login mutation
   const loginMutation = useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/login", { username, password });
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || "Login failed");
-      }
-      return response.json();
+      const res = await fetch(`${BASE_API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Login failed");
+      return data;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/me"], data.user);
     },
   });
 
-  // Logout
+  // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout", {});
+      await fetch(`${BASE_API_URL}/api/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/me"], null);
@@ -84,9 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
-  
