@@ -23,29 +23,31 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /* ============================================================
-   FIXED CORS (WORKS WITH VERCEL + RENDER)
+   FIXED CORS (Vercel + Render + Cookies)
 ============================================================ */
 const allowedOrigins = [
-  "https://sales-and-inventory-zeta.vercel.app", 
+  "https://sales-and-inventory-zeta.vercel.app",
   "http://localhost:5173",
 ];
 
-function originChecker(origin: string | undefined, callback: any) {
-  if (!origin) return callback(null, true);
-  if (allowedOrigins.includes(origin)) return callback(null, origin);
-  return callback(new Error("Not allowed by CORS"));
-}
-
 app.use(
   cors({
-    origin: originChecker,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow non-browser tools
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-app.options("*", cors({ origin: originChecker, credentials: true }));
+// Preflight (must match the above CORS config)
+app.options("*", cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 
 /* ============================================================
    LOGGING MIDDLEWARE
@@ -95,7 +97,7 @@ async function connectDB() {
   try {
     const uri =
       process.env.MONGO_URI ||
-      "mongodb+srv://mdaviddd:mdaviddd123@cluster0.th1nuox.mongodb.net/sales-inventory-management?retryWrites=true&w=majority";
+      "mongodb+srv://mdaviddd:mdaviddd123@cluster0.th1nuox.mongodb.net/sales-inventory-management";
 
     mongoose.set("strictQuery", true);
     await mongoose.connect(uri);

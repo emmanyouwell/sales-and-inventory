@@ -23,10 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       try {
         const response = await fetch(`${BASE_API_URL}/api/me`, {
-          credentials: "include", // ✅ include cookies for cross-domain auth
+          credentials: "include",
         });
         if (!response.ok) return null;
-        return response.json();
+        const data = await response.json();
+        return data.user ?? null; // ✅ extract user object
       } catch {
         return null;
       }
@@ -40,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${BASE_API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // ✅ include cookies
+        credentials: "include",
         body: JSON.stringify({ username, password }),
       });
 
@@ -58,12 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       await fetch(`${BASE_API_URL}/api/logout`, {
         method: "POST",
-        credentials: "include", // ✅ include cookies
+        credentials: "include",
       });
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/me"], null);
-      queryClient.clear();
     },
   });
 
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isLoading,
-        isLoginPending: loginMutation.isPending,
+        isLoginPending: loginMutation.isPending, // ✅ fixed
         loginError: (loginMutation.error as Error) ?? null,
       }}
     >
@@ -93,8 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }
