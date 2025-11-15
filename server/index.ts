@@ -23,22 +23,29 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 /* ============================================================
-   CORS (REQUIRED FOR RENDER + VERCEL)
+   FIXED CORS (WORKS WITH VERCEL + RENDER)
 ============================================================ */
 const allowedOrigins = [
-  "https://sales-and-inventory-zeta.vercel.app/", // your Vercel frontend
-  "http://localhost:5173", // optional dev frontend
+  "https://sales-and-inventory-zeta.vercel.app", 
+  "http://localhost:5173",
 ];
+
+function originChecker(origin: string | undefined, callback: any) {
+  if (!origin) return callback(null, true);
+  if (allowedOrigins.includes(origin)) return callback(null, origin);
+  return callback(new Error("Not allowed by CORS"));
+}
+
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: true, // important for cookies
+    origin: originChecker,
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-// Handle OPTIONS preflight
-app.options("*", cors({ origin: allowedOrigins, credentials: true }));
+app.options("*", cors({ origin: originChecker, credentials: true }));
 
 /* ============================================================
    LOGGING MIDDLEWARE
@@ -146,7 +153,7 @@ export default async function handler(req: Request, res: Response) {
 }
 
 /* ============================================================
-   NORMAL NODE SERVER (Render, Railway, Local)
+   NORMAL NODE SERVER (Render / Local)
 ============================================================ */
 if (!process.env.VERCEL) {
   const port = process.env.PORT || 3000;
