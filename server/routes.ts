@@ -1,198 +1,264 @@
-import express, { Request, Response } from "express";
+import type { Express, Request, Response } from "express";
 import bcrypt from "bcrypt";
+import { ZodError } from "zod";
 import { storage } from "./storage.js";
+import { loginSchema, registerSchema } from "../shared/schema.js";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
-export function registerRoutes() {
-  const router = express.Router();
+/**
+ * Registers all API routes
+ */
+export function registerRoutes(app: Express) {
+  console.log("🛠️ Registering API routes...");
 
-  /* ============================================================
-      GET CURRENT USER SESSION (/api/me)
-  ============================================================ */
-  router.get("/me", async (req: Request, res: Response) => {
+  // -------------------- Middleware --------------------
+  // Parse cookies for session handling
+  app.use(cookieParser());
+
+  // Enable CORS for your Vercel frontend
+  app.use(
+    cors({
+      origin: "https://sales-and-inventory-zeta.vercel.app", // frontend origin
+      credentials: true, // allow cookies
+    })
+  );
+
+  // -------------------- SESSION: CURRENT USER --------------------
+  app.get("/api/me", async (req: Request, res: Response) => {
     try {
-      const sessionId = req.cookies.sessionId;
-      if (!sessionId) return res.status(401).json({ error: "Not logged in" });
+      const sessionId = req.cookies?.sessionId;
+      if (!sessionId) return res.status(401).json({ message: "Not logged in" });
 
       const session = await storage.getSession(sessionId);
-      if (!session) return res.status(401).json({ error: "Invalid session" });
+      if (!session) return res.status(401).json({ message: "Invalid session" });
 
       const user = await storage.getUser(session.userId);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      if (!user) return res.status(404).json({ message: "User not found" });
 
-      res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      });
+      const { password, ...safeUser } = user;
+      res.json({ user: safeUser });
     } catch (err) {
-      res.status(500).json({ error: "Server error" });
+      console.error("/api/me error:", err);
+      res.status(500).json({ message: "Server error" });
     }
   });
 
-  /* ============================================================
-      USER REGISTRATION (/api/register)
-  ============================================================ */
-  router.post("/register", async (req: Request, res: Response) => {
+  // -------------------- LOGIN --------------------
+  app.post("/api/login", async (req: Request, res: Response) => {
     try {
-      const { username, password, firstName, lastName, email, phone } = req.body;
-
-      if (!username || !password)
-        return res.status(400).json({ error: "Username & password required" });
-
-      const user = await storage.registerUser({
-        username,
-        password,
-        firstName,
-        lastName,
-        email,
-        phone,
-        role: "Admin",
-      });
-
-      res.json({ message: "Registration successful", user });
-    } catch (err: any) {
-      res.status(400).json({ error: err.message });
-    }
-  });
-
-  /* ============================================================
-      LOGIN + COOLDOWN + SESSION CREATION (/api/login)
-  ============================================================ */
-  router.post("/login", async (req: Request, res: Response) => {
-    try {
-      const { username, password } = req.body;
-
+      const { username, password } = loginSchema.parse(req.body);
       const user = await storage.getUserByUsername(username);
-      if (!user) return res.status(400).json({ error: "Invalid username or password" });
+      if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-      // Check cooldown
-      if (user.cooldownUntil && new Date(user.cooldownUntil) > new Date()) {
+      if (user.cooldownUntil && user.cooldownUntil > new Date()) {
+        const remaining = Math.ceil((user.cooldownUntil.getTime() - Date.now()) / 1000);
         return res.status(429).json({
-          error: "Too many failed attempts",
-          cooldownUntil: user.cooldownUntil,
+          message: "Account temporarily locked. Try again later.",
+          remainingSeconds: remaining,
         });
       }
 
-      // Compare password
-      const match = await bcrypt.compare(password, user.password);
-      if (!match) {
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
         await storage.incrementLoginAttempts(username);
 
-        // Apply cooldowns
-        const newUser = await storage.getUserByUsername(username);
-        if (newUser!.loginAttempts >= 5) {
-          const until = new Date(Date.now() + 5 * 60 * 1000);
-          await storage.setCooldown(username, until);
-        } else if (newUser!.loginAttempts >= 3) {
-          const until = new Date(Date.now() + 60 * 1000);
-          await storage.setCooldown(username, until);
+        if ((user.loginAttempts || 0) >= 2) {
+          const cooldownUntil = new Date(Date.now() + 5 * 60 * 1000);
+          await storage.setCooldown(username, cooldownUntil);
+          return res.status(429).json({
+            message: "Too many failed attempts. Account locked for 5 minutes.",
+            cooldownUntil,
+          });
         }
 
-        return res.status(400).json({ error: "Invalid username or password" });
+        return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Success → reset attempts
       await storage.resetLoginAttempts(username);
-
-      // Create session
       const session = await storage.createSession(user.id);
 
       res.cookie("sessionId", session.id, {
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "none", // necessary for cross-origin cookies
+        maxAge: 24 * 60 * 60 * 1000,
       });
 
-      res.json({ message: "Login successful" });
+      const { password: _, ...safeUser } = user;
+      res.json({ user: safeUser, session });
     } catch (err) {
-      res.status(500).json({ error: "Server error" });
+      console.error("Login error:", err);
+      res.status(400).json({ message: "Invalid request data" });
     }
   });
 
-  /* ============================================================
-      LOGOUT (/api/logout)
-  ============================================================ */
-  router.post("/logout", async (req: Request, res: Response) => {
+  // -------------------- REGISTER --------------------
+  app.post("/api/register", async (req: Request, res: Response) => {
     try {
-      const sessionId = req.cookies.sessionId;
-      if (sessionId) await storage.deleteSession(sessionId);
-
-      res.clearCookie("sessionId", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/",
-      });
-
-      res.json({ message: "Logged out" });
-    } catch {
-      res.status(500).json({ error: "Server error" });
+      const userData = registerSchema.parse(req.body);
+      const { confirmPassword, ...cleanData } = userData;
+      const user = await storage.registerUser(cleanData);
+      const { password: _, ...safeUser } = user;
+      res.status(201).json({ user: safeUser });
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      if (error.message === "Username already exists") {
+        return res.status(409).json({ message: error.message });
+      }
+      res.status(400).json({ message: "Invalid request" });
     }
   });
 
-  /* ============================================================
-      GET ALL PRODUCTS (/api/products)
-  ============================================================ */
-  router.get("/products", async (_req: Request, res: Response) => {
+  // -------------------- LOGOUT --------------------
+  app.post("/api/logout", async (req: Request, res: Response) => {
+    const sessionId = req.cookies?.sessionId;
+    if (sessionId) await storage.deleteSession(sessionId);
+    res.clearCookie("sessionId", { sameSite: "none", secure: process.env.NODE_ENV === "production" });
+    res.json({ message: "Logged out successfully" });
+  });
+
+  // -------------------- OTHER ROUTES --------------------
+  // ... Keep all your products, sales, admin routes as-is
+ app.get("/api/products", async (_req, res) => {
     try {
       const products = await storage.getAllProducts();
       res.json(products);
-    } catch {
-      res.status(500).json({ error: "Failed to load products" });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch products" });
     }
   });
 
-  /* ============================================================
-      CREATE PRODUCT (/api/products)
-  ============================================================ */
-  router.post("/products", async (req: Request, res: Response) => {
+  app.get("/api/products/:id", async (req, res) => {
     try {
-      const product = await storage.createProduct(req.body);
+      const product =
+        (await storage.getProductByManualId(req.params.id)) ||
+        (await storage.getProduct(req.params.id));
+      if (!product) return res.status(404).json({ message: "Product not found" });
       res.json(product);
     } catch {
-      res.status(500).json({ error: "Failed to create product" });
+      res.status(500).json({ message: "Failed to fetch product" });
     }
   });
 
-  /* ============================================================
-      UPDATE PRODUCT
-  ============================================================ */
-  router.put("/products/:id", async (req: Request, res: Response) => {
+  app.post("/api/products", async (req, res) => {
+    try {
+      if (!req.body.id) return res.status(400).json({ message: "Product ID required" });
+      const existing = await storage.getProductByManualId?.(req.body.id);
+      if (existing) return res.status(409).json({ message: "Product ID exists" });
+      const product = await storage.createProduct(req.body);
+      res.status(201).json(product);
+    } catch {
+      res.status(500).json({ message: "Failed to add product" });
+    }
+  });
+
+  app.put("/api/products/:id", async (req, res) => {
     try {
       const updated = await storage.updateProduct(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ message: "Product not found" });
       res.json(updated);
     } catch {
-      res.status(500).json({ error: "Failed to update product" });
+      res.status(500).json({ message: "Failed to update product" });
     }
   });
 
-  /* ============================================================
-      DELETE PRODUCT
-  ============================================================ */
-  router.delete("/products/:id", async (req: Request, res: Response) => {
+  app.delete("/api/products/:id", async (req, res) => {
     try {
       const success = await storage.deleteProduct(req.params.id);
-      res.json({ success });
+      if (!success) return res.status(404).json({ message: "Product not found" });
+      res.json({ message: "Product deleted" });
     } catch {
-      res.status(500).json({ error: "Failed to delete product" });
+      res.status(500).json({ message: "Failed to delete product" });
     }
   });
 
-  /* ============================================================
-      SALES REPORTS (/api/reports/daily or /weekly)
-  ============================================================ */
-  router.get("/reports/:period", async (req: Request, res: Response) => {
+  app.post("/api/products/:id/deduct", async (req, res) => {
+    try {
+      const { quantity } = req.body;
+      const productId = req.params.id;
+
+      const product =
+        (await storage.getProductByManualId(productId)) ||
+        (await storage.getProduct(productId));
+
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      if (product.quantity < quantity)
+        return res.status(400).json({ message: "Insufficient stock" });
+
+      await storage.deductProductStock(product.id, quantity);
+      const updated = await storage.getProduct(product.id);
+
+      res.json({
+        message: `Deducted ${quantity} item(s).`,
+        product: updated,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to deduct stock" });
+    }
+  });
+
+  app.post("/api/sales", async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!Array.isArray(items) || items.length === 0)
+        return res.status(400).json({ message: "No sale items provided" });
+
+      let totalAmount = 0;
+      const saleRecords = [];
+
+      for (const item of items) {
+        const product =
+          (await storage.getProductByManualId(item.id)) ||
+          (await storage.getProduct(item.id));
+
+        if (!product)
+          return res.status(404).json({ message: `Product not found: ${item.id}` });
+        if (product.quantity < item.quantity)
+          return res.status(400).json({
+            message: `Insufficient stock for ${product.name}`,
+          });
+
+        await storage.deductProductStock(product.id, item.quantity);
+        totalAmount += product.price * item.quantity;
+
+        saleRecords.push({
+          productId: product.id,
+          productName: product.name,
+          quantitySold: item.quantity,
+          totalPrice: product.price * item.quantity,
+        });
+      }
+
+      res.json({
+        message: "Transaction completed.",
+        totalAmount,
+        saleRecords,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to complete sale" });
+    }
+  });
+
+  app.get("/api/sales", async (_req, res) => {
+    try {
+      const sales = await storage.getSalesReport("daily");
+      res.json(sales);
+    } catch {
+      res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  app.get("/api/reports/:period", async (req, res) => {
     try {
       const period = req.params.period === "weekly" ? "weekly" : "daily";
       const report = await storage.getSalesReport(period);
       res.json(report);
     } catch {
-      res.status(500).json({ error: "Failed to get report" });
+      res.status(500).json({ message: "Failed to generate report" });
     }
   });
-
-  return router;
+  
 }
