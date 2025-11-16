@@ -31,6 +31,7 @@ app.use(cookieParser());
 ============================================================ */
 const allowedOrigins = [
   'https://sales-and-inventory-zeta.vercel.app',
+  'https://sales-and-inventory-blue.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000', // Main entry point for backend and frontend
 ];
