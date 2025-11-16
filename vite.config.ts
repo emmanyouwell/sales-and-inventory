@@ -40,7 +40,7 @@ export default defineConfig({
     postcss: path.resolve(__dirname, "postcss.config.js"), // ✅ fixes "from" warning
   },
   build: {
-    outDir: path.resolve(__dirname, "dist"),
+    outDir: "dist",
     emptyOutDir: true,
   },
  server: {
