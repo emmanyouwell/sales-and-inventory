@@ -66,7 +66,7 @@ export function serveStatic(app: Application) {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
 
-  const distPath = path.resolve(__dirname, "../client/dist");
+  const distPath = path.resolve(__dirname, '../client/dist');
 
   if (!fs.existsSync(distPath)) {
     throw new Error(`Could not find the build directory: ${distPath}`);
