@@ -12,18 +12,6 @@ import cookieParser from "cookie-parser";
 export function registerRoutes(app: Express) {
   console.log("🛠️ Registering API routes...");
 
-  // -------------------- Middleware --------------------
-  // Parse cookies for session handling
-  app.use(cookieParser());
-
-  // Enable CORS for your Vercel frontend
-  app.use(
-    cors({
-      origin: "https://sales-and-inventory-zeta.vercel.app", // frontend origin
-      credentials: true, // allow cookies
-    })
-  );
-
   // -------------------- SESSION: CURRENT USER --------------------
   app.get("/api/me", async (req: Request, res: Response) => {
     try {
