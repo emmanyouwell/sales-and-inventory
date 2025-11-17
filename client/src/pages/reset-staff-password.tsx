@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { KeyRound, RefreshCcw } from "lucide-react";
+import { BASE_API_URL } from "@/api";
 
 /**
  * Admin page to reset passwords for staff and supplier accounts
@@ -20,7 +21,7 @@ export default function ResetStaffPassword() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/accounts");
+      const res = await fetch(`${BASE_API_URL}/api/admin/accounts`);
       if (!res.ok) throw new Error("Failed to load accounts");
       const data = await res.json();
       setUsers(data);

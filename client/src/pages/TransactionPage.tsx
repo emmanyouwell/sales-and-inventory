@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DollarSign, Printer, ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"; // Add a Dialog component
+import { BASE_API_URL } from "@/api";
 
 interface Product {
   id: string;
@@ -26,7 +27,7 @@ export default function TransactionPage() {
   const [, setLocation] = useLocation();
 
   const fetchProduct = async (id: string): Promise<Product> => {
-    const res = await fetch(`/api/products/${id}`);
+    const res = await fetch(`${BASE_API_URL}/api/products/${id}`);
     if (!res.ok) throw new Error("Product not found");
     return res.json();
   };

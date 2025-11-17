@@ -22,6 +22,7 @@ import { EditProductDialog } from "@/components/edit-product-dialog";
 import { PlaceOrderDialog } from "@/components/place-order-dialog";
 
 import type { Product } from "@shared/schema";
+import { BASE_API_URL } from "@/api";
 
 export default function Products() {
   const [, setLocation] = useLocation();
@@ -48,7 +49,7 @@ export default function Products() {
   } = useQuery<Product[]>({
     queryKey: ["products"],
     queryFn: async () => {
-      const res = await fetch("/api/products", { cache: "no-store" });
+      const res = await fetch(`${BASE_API_URL}/api/products`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
       return res.json();
     },

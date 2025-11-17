@@ -30,7 +30,11 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
   }) => QueryFunction<T> =
     ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
-      const res = await fetch(queryKey.join("/") as string, {
+      // ✅ Fix: Prepend BASE_API_URL to the query key
+      const url = queryKey[0] as string;
+      const fullUrl = url.startsWith("http") ? url : `${BASE_API_URL}${url}`;
+      
+      const res = await fetch(fullUrl, {
         credentials: "include",
       });
 
