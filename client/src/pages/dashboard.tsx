@@ -1,35 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/context/AuthProvider";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Package, AlertTriangle, DollarSign, User, LogOut, ShoppingCart } from "lucide-react";
+import {
+  Package,
+  AlertTriangle,
+  DollarSign,
+  User,
+  LogOut,
+  ShoppingCart,
+  Menu,
+  LayoutDashboard,
+} from "lucide-react";
 
 interface Stats {
   totalProducts: number;
   lowStockItems: number;
-  totalValue: number | null; // allow null if server hides it for non-admins
-  lowStockProducts: Array<{
-    id: string;
-    name: string;
-    quantity: number;
-  }>;
+  totalValue: number | null;
+  lowStockProducts: Array<{ id: string; name: string; quantity: number }>;
 }
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!user) setLocation("/login");
   }, [user, setLocation]);
 
-  const { data: stats, isLoading } = useQuery<Stats>({
-    queryKey: ["/api/stats"],
-    enabled: !!user,
-  });
+  const { data: stats, isLoading } = useQuery<Stats>({ queryKey: ["/api/stats"], enabled: !!user });
 
   const handleLogout = async () => {
     await logout();
@@ -40,7 +43,6 @@ export default function Dashboard() {
 
   const isAdminOrStaff = user.role === "admin" || user.role === "staff";
 
-  // ✅ Peso currency formatter
   const formatPeso = (value: number | null | undefined) => {
     if (value == null) return "₱0.00";
     return value.toLocaleString("en-PH", {
@@ -51,96 +53,94 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-sm border-b" data-testid="dashboard-header">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-foreground" data-testid="page-title">
-                  Dashboard
-                </h1>
-                <p className="text-sm text-muted-foreground" data-testid="dashboard-subtitle">
-                  Welcome back, {user.firstName || user.username}
-                </p>
-              </div>
-            </div>
+    <div className="min-h-screen flex bg-background">
+      {/* MOBILE HEADER */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-card border-b px-4 py-3 flex items-center justify-between z-40">
+        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+          <Menu className="w-6 h-6" />
+        </Button>
+        <h1 className="text-lg font-semibold">Dashboard</h1>
+      </div>
 
-            <div className="flex items-center space-x-2">
-              <Link href="/products">
-                <Button variant="outline" size="sm" data-testid="button-products">
-                  <Package className="w-4 h-4 mr-2" />
-                  Products
-                </Button>
-              </Link>
-              <Link href="/orders">
-                <Button variant="outline" size="sm" data-testid="button-orders">
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Reports
-                </Button>
-              </Link>
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed lg:static top-0 left-0 h-full w-64 bg-card border-r shadow-md z-50 transform transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+      >
+        <div className="p-5 border-b">
+          <h2 className="text-xl font-bold">BLCM</h2>
+          <p className="text-sm text-muted-foreground">Welcome, {user.firstName}</p>
+        </div>
 
-              <Link href="/profile">
-                <Button variant="outline" size="sm" data-testid="button-profile">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </Button>
-                {user.role === "staff" && (
-                  <Link href="/transaction">
-                    <Button variant="outline" size="sm" data-testid="button-transaction">
-                     <DollarSign className="w-4 h-4 mr-2" />
-                 Create New Transaction
+        <nav className="flex flex-col p-4 space-y-2">
+          <Link href="/dashboard">
+            <Button variant="ghost" className="w-full justify-start">
+              <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
             </Button>
           </Link>
-            )}
-              </Link>
-              <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-logout">
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+          <Link href="/products">
+            <Button variant="ghost" className="w-full justify-start">
+              <Package className="w-4 h-4 mr-2" /> Products
+            </Button>
+          </Link>
+          <Link href="/orders">
+            <Button variant="ghost" className="w-full justify-start">
+              <ShoppingCart className="w-4 h-4 mr-2" /> Reports
+            </Button>
+          </Link>
+          <Link href="/profile">
+            <Button variant="ghost" className="w-full justify-start">
+              <User className="w-4 h-4 mr-2" /> Profile
+            </Button>
+          </Link>
+          {user.role === "staff" && (
+            <Link href="/transaction">
+              <Button variant="ghost" className="w-full justify-start">
+                <DollarSign className="w-4 h-4 mr-2" /> Create New Transaction
               </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+            </Link>
+          )}
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-red-500"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Logout
+          </Button>
+        </nav>
+      </aside>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
+      {/* OVERLAY FOR MOBILE */}
+      {sidebarOpen && (
         <div
-          className={`grid grid-cols-1 ${isAdminOrStaff ? "md:grid-cols-3" : "md:grid-cols-2"} gap-6 mb-8`}
-        >
-          {/* Total Products */}
+          className="fixed inset-0 bg-black/40 lg:hidden z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 p-6 mt-14 lg:mt-0">
+        <div className={`grid grid-cols-1 ${isAdminOrStaff ? "md:grid-cols-3" : "md:grid-cols-2"} gap-6 mb-8`}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Products</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {isLoading ? "..." : stats?.totalProducts ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground">+2 from last month</p>
+              <div className="text-2xl font-bold">{isLoading ? "..." : stats?.totalProducts ?? 0}</div>
             </CardContent>
           </Card>
 
-          {/* Low Stock Items */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">
-                {isLoading ? "..." : stats?.lowStockItems ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground">Requires attention</p>
+              <div className="text-2xl font-bold text-destructive">{isLoading ? "..." : stats?.lowStockItems ?? 0}</div>
             </CardContent>
           </Card>
 
-          {/* ✅ Total Value — in Peso currency */}
           {isAdminOrStaff && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -148,46 +148,25 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {isLoading ? "..." : formatPeso(stats?.totalValue)}
-                </div>
-                <p className="text-xs text-muted-foreground">+5.2% from last month</p>
+                <div className="text-2xl font-bold">{isLoading ? "..." : formatPeso(stats?.totalValue)}</div>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Recent Activity and Low Stock */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-primary rounded-full" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      System initialized successfully
-                    </p>
-                    <p className="text-sm text-muted-foreground">Just now</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="w-2 h-2 bg-accent rounded-full" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      Welcome to BLCM Dashboard
-                    </p>
-                    <p className="text-sm text-muted-foreground">2 minutes ago</p>
-                  </div>
-                </div>
+              <div className="space-y-4 text-sm">
+                <p>System initialized successfully — Just now</p>
+                <p>Welcome to BLCM Dashboard — 2 minutes ago</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Low Stock Alert */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Low Stock Alert</CardTitle>
@@ -201,15 +180,11 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   {stats.lowStockProducts.map((item) => (
                     <div key={item.id} className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Only {item.quantity} left in stock
-                        </p>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">Only {item.quantity} left</p>
                       </div>
-                      <Badge variant="destructive">
-                        {item.quantity <= 1 ? "Critical" : "Low"}
-                      </Badge>
+                      <Badge variant="destructive">{item.quantity <= 1 ? "Critical" : "Low"}</Badge>
                     </div>
                   ))}
                 </div>
@@ -217,7 +192,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
