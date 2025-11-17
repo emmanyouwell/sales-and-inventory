@@ -110,95 +110,83 @@ export function registerRoutes(app: Express) {
 
   // -------------------- OTHER ROUTES --------------------
   // ... Keep all your products, sales, admin routes as-is
-  // -------------------- PRODUCT ROUTES --------------------
-app.get("/api/products", async (_req, res) => {
-  try {
-    const products = await storage.getAllProducts();
-    res.json(products);
-  } catch (err) {
-    console.error("GET /api/products error:", err);
-    res.status(500).json({ message: "Failed to fetch products" });
-  }
-});
+ app.get("/api/products", async (_req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
 
-app.get("/api/products/:id", async (req, res) => {
-  try {
-    const product =
-      (await storage.getProductByManualId(req.params.id)) ||
-      (await storage.getProduct(req.params.id));
+  app.get("/api/products/:id", async (req, res) => {
+    try {
+      const product =
+        (await storage.getProductByManualId(req.params.id)) ||
+        (await storage.getProduct(req.params.id));
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      res.json(product);
+    } catch {
+      res.status(500).json({ message: "Failed to fetch product" });
+    }
+  });
 
-    if (!product) return res.status(404).json({ message: "Product not found" });
+  app.post("/api/products", async (req, res) => {
+    try {
+      if (!req.body.id) return res.status(400).json({ message: "Product ID required" });
+      const existing = await storage.getProductByManualId?.(req.body.id);
+      if (existing) return res.status(409).json({ message: "Product ID exists" });
+      const product = await storage.createProduct(req.body);
+      res.status(201).json(product);
+    } catch {
+      res.status(500).json({ message: "Failed to add product" });
+    }
+  });
 
-    res.json(product);
-  } catch (err) {
-    console.error(`GET /api/products/${req.params.id} error:`, err);
-    res.status(500).json({ message: "Failed to fetch product" });
-  }
-});
+  app.put("/api/products/:id", async (req, res) => {
+    try {
+      const updated = await storage.updateProduct(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ message: "Product not found" });
+      res.json(updated);
+    } catch {
+      res.status(500).json({ message: "Failed to update product" });
+    }
+  });
 
-app.post("/api/products", async (req, res) => {
-  try {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ message: "Product ID required" });
+  app.delete("/api/products/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteProduct(req.params.id);
+      if (!success) return res.status(404).json({ message: "Product not found" });
+      res.json({ message: "Product deleted" });
+    } catch {
+      res.status(500).json({ message: "Failed to delete product" });
+    }
+  });
 
-    const existing = await storage.getProductByManualId(id);
-    if (existing) return res.status(409).json({ message: "Product ID exists" });
+  app.post("/api/products/:id/deduct", async (req, res) => {
+    try {
+      const { quantity } = req.body;
+      const productId = req.params.id;
 
-    const product = await storage.createProduct(req.body);
-    res.status(201).json(product);
-  } catch (err) {
-    console.error("POST /api/products error:", err);
-    res.status(500).json({ message: "Failed to add product" });
-  }
-});
+      const product =
+        (await storage.getProductByManualId(productId)) ||
+        (await storage.getProduct(productId));
 
-app.put("/api/products/:id", async (req, res) => {
-  try {
-    const updated = await storage.updateProduct(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ message: "Product not found" });
+      if (!product) return res.status(404).json({ message: "Product not found" });
+      if (product.quantity < quantity)
+        return res.status(400).json({ message: "Insufficient stock" });
 
-    res.json(updated);
-  } catch (err) {
-    console.error(`PUT /api/products/${req.params.id} error:`, err);
-    res.status(500).json({ message: "Failed to update product" });
-  }
-});
+      await storage.deductProductStock(product.id, quantity);
+      const updated = await storage.getProduct(product.id);
 
-app.delete("/api/products/:id", async (req, res) => {
-  try {
-    const success = await storage.deleteProduct(req.params.id);
-    if (!success) return res.status(404).json({ message: "Product not found" });
-
-    res.json({ message: "Product deleted" });
-  } catch (err) {
-    console.error(`DELETE /api/products/${req.params.id} error:`, err);
-    res.status(500).json({ message: "Failed to delete product" });
-  }
-});
-
-app.post("/api/products/:id/deduct", async (req, res) => {
-  try {
-    const { quantity } = req.body;
-    if (typeof quantity !== "number" || quantity <= 0)
-      return res.status(400).json({ message: "Quantity must be a positive number" });
-
-    const product =
-      (await storage.getProductByManualId(req.params.id)) ||
-      (await storage.getProduct(req.params.id));
-
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    if (product.quantity < quantity)
-      return res.status(400).json({ message: "Insufficient stock" });
-
-    await storage.deductProductStock(product.id, quantity);
-    const updated = await storage.getProduct(product.id);
-
-    res.json({ message: `Deducted ${quantity} item(s)`, product: updated });
-  } catch (err) {
-    console.error(`POST /api/products/${req.params.id}/deduct error:`, err);
-    res.status(500).json({ message: "Failed to deduct stock" });
-  }
-});
+      res.json({
+        message: `Deducted ${quantity} item(s).`,
+        product: updated,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to deduct stock" });
+    }
+  });
 
   app.post("/api/sales", async (req, res) => {
     try {
